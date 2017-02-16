@@ -32,8 +32,8 @@ public class ECGData {
         x = rawList.get(rawList.size());
         x6 = rawList.get(rawList.size() - 6);
         x12 = rawList.get(rawList.size() - 12);
-        y1 = LPList.get(LPList.size());
-        y2 = LPList.get(LPList.size() - 1);
+        y1 = LPList.get(LPList.size() - 1);
+        y2 = LPList.get(LPList.size() - 2);
         y = 2*y1 - y2 +x - 2*x6 + x12;
         LPList.add(y);
     }

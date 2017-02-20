@@ -15,7 +15,6 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 import com.jjoe64.graphview.series.PointsGraphSeries;
 import com.jjoe64.graphview.series.DataPoint;
 
-import java.text.SimpleDateFormat;
 import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -43,8 +42,6 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.fragment_test);
 
-        //Changes cur_x axis values of graph to seconds instead of frame number
-        final java.text.DateFormat simpleDateFormatter = new SimpleDateFormat("mm:ss");
         highPassFilterSeries = new LineGraphSeries();
         lowPassFilterSeries = new LineGraphSeries();
         fileSeries = new LineGraphSeries();
@@ -114,7 +111,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
 
         try {
             AssetManager mnger = getAssets();
-            InputStream stream = mnger.open("samples/Sample1.txt");
+            InputStream stream = mnger.open("samples/Sample1-Filtered.txt");
         }
         catch(Exception e) {
             Log.d("TAG", e.getMessage());

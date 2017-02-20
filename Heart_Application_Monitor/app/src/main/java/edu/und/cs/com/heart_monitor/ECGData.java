@@ -12,7 +12,6 @@ public class ECGData {
     private ArrayList<Integer> rawList = new ArrayList<Integer>(250);
     private ArrayList<Integer> LPList = new ArrayList<Integer>(250);
     private ArrayList<Integer> HPList = new ArrayList<Integer>(250);
-
     private ArrayList<Integer> timeList = new ArrayList<Integer>(250);
 
     public void addPoint(int timeValue, int rawValue) {

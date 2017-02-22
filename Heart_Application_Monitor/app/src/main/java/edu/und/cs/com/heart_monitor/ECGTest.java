@@ -227,7 +227,6 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             for (int x = 0; x < sample; x++) {
                 try {
                     line = reader.readLine().split(",");
-                    line = reader.readLine().split(",");
                     file[x] = Integer.parseInt(line[1]);
                     data.addPoint(file[x]);
                 }

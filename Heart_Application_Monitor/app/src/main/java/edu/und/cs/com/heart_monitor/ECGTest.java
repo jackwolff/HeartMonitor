@@ -33,33 +33,37 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
     private LineGraphSeries lowPassFilterSeries;
     //Series that reads directly from the file
     private LineGraphSeries fileSeries;
-    private GraphView myGraphView;
+    private GraphView ecgGraphView;
 
     AsyncTask task;
     private boolean isAsyncTaskCancelled = false;
 
+    ECGFilter data;
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.fragment_test);
+
+        data = new ECGFilter();
 
         highPassFilterSeries = new LineGraphSeries();
         lowPassFilterSeries = new LineGraphSeries();
         fileSeries = new LineGraphSeries();
         fileSeries.setColor(Color.RED);
         lowPassFilterSeries.setColor(Color.GREEN);
-        myGraphView = (GraphView)findViewById(R.id.graph);
-        //myGraphView.addSeries(highPassFilterSeries);
-        myGraphView.addSeries(fileSeries);
-        myGraphView.addSeries(lowPassFilterSeries);
+        ecgGraphView = (GraphView)findViewById(R.id.graph);
+        //ecgGraphView.addSeries(highPassFilterSeries);
+        ecgGraphView.addSeries(fileSeries);
+        ecgGraphView.addSeries(lowPassFilterSeries);
         //Set graph options
-        myGraphView.getViewport().setXAxisBoundsManual(true);
-        myGraphView.getViewport().setYAxisBoundsManual(true);
+        ecgGraphView.getViewport().setXAxisBoundsManual(true);
+        ecgGraphView.getViewport().setYAxisBoundsManual(true);
 
-        myGraphView.getViewport().setMinX(0);
-        myGraphView.getViewport().setMaxX(200);
+        ecgGraphView.getViewport().setMinX(0);
+        ecgGraphView.getViewport().setMaxX(200);
 
-        myGraphView.getViewport().setMinY(-100);
-        myGraphView.getViewport().setMaxY(200);
+        ecgGraphView.getViewport().setMinY(-100);
+        ecgGraphView.getViewport().setMaxY(300);
 
         //Find the buttons by their ID
         final Button startButton = (Button) findViewById(R.id.startBTN);
@@ -160,7 +164,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         //Current cur_x value in the graph
         int cur_x;
 
-        private final int sample = 10000;
+        private final int sample = 5000;
 
         private int[] qrs;
         private float[] highFilter;
@@ -170,12 +174,12 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         BufferedReader reader;
         /**
          * Read from the file and update the graph.
-         * @param params A single array containing the filename
+         * @param param A single array containing the filename
          * @return null
          */
-        protected Void doInBackground(String... params) {
+        protected Void doInBackground(String... param) {
             //Get the filename and open the file for parsing
-            String fileName = params[0];
+            String fileName = param[0];
             AssetManager mnger = getAssets();
             //Start at 0
             cur_x = 0;
@@ -223,7 +227,9 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             for (int x = 0; x < sample; x++) {
                 try {
                     line = reader.readLine().split(",");
+                    line = reader.readLine().split(",");
                     file[x] = Integer.parseInt(line[1]);
+                    data.addPoint(file[x]);
                 }
                 catch(Exception e) {
                     Log.d("ECGTest", e.getMessage());
@@ -239,17 +245,17 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         protected void onProgressUpdate(String... values) {
             //DataPoint from the file
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
-            DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
-            DataPoint lowFilterPoint = new DataPoint(cur_x, lowFilter[cur_x % sample]);
+            //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
+            DataPoint lowFilterPoint = new DataPoint(cur_x, data.getFilteredVal(cur_x) / 1152);
             fileSeries.appendData(fileDataPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
-            highPassFilterSeries.appendData(highFilterPoint, true, 200);
+            //highPassFilterSeries.appendData(highFilterPoint, true, 200);
             if(qrs[cur_x % sample] == 1) {
                 PointsGraphSeries<DataPoint> point = new PointsGraphSeries<>(
                         new DataPoint[] {
                             new DataPoint(cur_x, file[cur_x % sample])
                         });
-                myGraphView.addSeries(point);
+                ecgGraphView.addSeries(point);
             }
         }
     }

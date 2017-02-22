@@ -53,14 +53,16 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         derivativeSeries.setColor(Color.BLACK);
         lowPassFilterSeries.setColor(Color.GREEN);
         myGraphView = (GraphView)findViewById(R.id.graph);
-        myGraphView.addSeries(highPassFilterSeries);
+        //myGraphView.addSeries(highPassFilterSeries);
         myGraphView.addSeries(fileSeries);
         myGraphView.addSeries(lowPassFilterSeries);
         //Set graph options
         myGraphView.getViewport().setXAxisBoundsManual(true);
         myGraphView.getViewport().setYAxisBoundsManual(true);
+
         myGraphView.getViewport().setMinX(0);
         myGraphView.getViewport().setMaxX(200);
+
         myGraphView.getViewport().setMinY(-100);
         myGraphView.getViewport().setMaxY(200);
 
@@ -141,7 +143,6 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             builder.show();
         }
         catch(Exception e) {
-            Log.d("TAG", e.getMessage());
         }
     }
 
@@ -164,7 +165,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         //Current cur_x value in the graph
         int cur_x;
 
-        private final int sample = 250;
+        private final int sample = 10000;
 
         private int[] qrs;
         private float[] highFilter;
@@ -207,7 +208,6 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                         Log.d("WAIT", "Waiting...");
                     }
                     catch(Exception e) {
-                        Log.d("TAG", e.getMessage());
                     }
                     cur_x++;
                     if(cur_x % sample == 0)
@@ -246,7 +246,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         protected void onProgressUpdate(String... values) {
             //DataPoint from the file
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
-            DataPoint ecgDetectPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
+            DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
             DataPoint lowFilterPoint = new DataPoint(cur_x, lowFilter[cur_x % sample]);
             if (cur_x % sample < 246)
             {
@@ -254,8 +254,8 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                 derivativeSeries.appendData(derivativePoint, true, 200);
             }
             fileSeries.appendData(fileDataPoint, true, 200);
-            highPassFilterSeries.appendData(ecgDetectPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
+            highPassFilterSeries.appendData(highFilterPoint, true, 200);
             if(qrs[cur_x % sample] == 1) {
                 PointsGraphSeries<DataPoint> point = new PointsGraphSeries<>(
                         new DataPoint[] {

@@ -2,17 +2,15 @@ package edu.und.cs.com.heart_monitor;
 import android.util.Log;
 /**
  * Created by Jack Wolff on 1/22/2017.
+ * Actual author is Boštjan Cigan
+ * Website: https://bostjan-cigan.com/
+ * We have permission to use his code.
  */
 
 public class QRSDetection {
-    public static final int M = 5;
-    public static final int N = 30;
-    public static final int winSize = 250;
-    public static final float HP_CONSTANT = (float) 1/M;
+    private static final int M = 7;
+    private static double treshold = 0;
 
-    // High pass filter
-// y1[n] = 1/M * Sum[m=0, M-1] cur_x[n-m]
-// y2[n] = cur_x[n - (M+1)/2]
     public static float[] highPass(int[] sig0, int nsamp) {
         float[] highPass = new float[nsamp];
         float constant = (float) 1/M;
@@ -76,10 +74,8 @@ public class QRSDetection {
     public static int[] QRS(float[] lowPass, int nsamp) {
         int[] QRS = new int[nsamp];
 
-        double treshold = 0;
-
-        for(int i=0; i<200; i++) {
-            if(lowPass[i] > treshold) {
+        for (int i = 0; i < 200; i++) {
+            if (lowPass[i] > treshold) {
                 treshold = lowPass[i];
             }
         }

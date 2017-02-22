@@ -113,9 +113,47 @@ public class QRSDetection {
             double alpha = 0.01 + (Math.random() * ((0.1 - 0.01)));
 
             treshold = alpha * gama * max + (1 - alpha) * treshold;
-
         }
 
+
+
         return QRS;
+    }
+
+    /**
+     * Takes in the filtered ECG signal and returns the slope information. Slopes correspond to x+h values
+     * (Offset by h from original signal), where h is 1/2 of dx (time in seconds between each sample).
+     *
+     * Uses symmetric derivative equation which is:
+     *
+     * f'(x) = (f'(x + h) - f'(x - h))/(2h)
+     *
+     *   OR the equivalent:
+     *
+     * f'(x + dx/2) - f'(x - dx/2)/(dx) where dx is the change in time between each sample
+     *
+     * This finds the slope at the tangent line in the middle of these two points (hence the offset by h or dx/2).
+     *
+     * @param filtered The filtered signal data from file or leads
+     * @param sRate The sample rate in Hz (currently hardcoded to 500 Hz)
+     * @return Slope information (derivative curve)
+     */
+    public static float[] derivative(int[] filtered, int sRate)
+    {
+        float[] deriv = new float[filtered.length-1]; // derivative requires 2 points so 1 raw -> 0 derivatives, 2 raw -> 1 derivatives, etc.
+        sRate = 500;
+        int dx = 1/sRate;
+
+        deriv[0] = 0;
+        deriv[1] = 1;
+
+        for (int i = 0; i < filtered.length - 4; i++)
+        {
+            //deriv[i] = (filtered[i+1] - filtered[i])/(dx);
+            //deriv[i] = (filtered[i+1] - filtered[i])*(filtered[i+1] - filtered[i]);   //hardcoding for now
+            deriv[i+2] = (filtered[i+4]+2*filtered[i+3]-2*filtered[i+1]-filtered[i])*(filtered[i+4]+2*filtered[i+3]-2*filtered[i+1]-filtered[i]);
+        }
+
+        return deriv;
     }
 }

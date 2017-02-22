@@ -35,6 +35,9 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
     private LineGraphSeries fileSeries;
     private GraphView myGraphView;
 
+    //Derivative Series
+    private LineGraphSeries derivativeSeries;
+
     AsyncTask task;
     private boolean isAsyncTaskCancelled = false;
 
@@ -46,6 +49,8 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         lowPassFilterSeries = new LineGraphSeries();
         fileSeries = new LineGraphSeries();
         fileSeries.setColor(Color.RED);
+        derivativeSeries = new LineGraphSeries();
+        derivativeSeries.setColor(Color.BLACK);
         lowPassFilterSeries.setColor(Color.GREEN);
         myGraphView = (GraphView)findViewById(R.id.graph);
         myGraphView.addSeries(highPassFilterSeries);
@@ -165,6 +170,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         private float[] highFilter;
         private float[] lowFilter;
         private int[] file;
+        private float[] derivative;
 
         BufferedReader reader;
         /**
@@ -233,6 +239,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             highFilter = QRSDetection.highPass(file, sample);
             lowFilter = QRSDetection.lowPass(highFilter, sample);
             qrs = QRSDetection.QRS(lowFilter, sample);
+            derivative = QRSDetection.derivative(file, 500);
         }
 
         @Override
@@ -241,6 +248,11 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
             DataPoint ecgDetectPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
             DataPoint lowFilterPoint = new DataPoint(cur_x, lowFilter[cur_x % sample]);
+            if (cur_x % sample < 246)
+            {
+                DataPoint derivativePoint = new DataPoint(cur_x, derivative[cur_x % sample]);
+                derivativeSeries.appendData(derivativePoint, true, 200);
+            }
             fileSeries.appendData(fileDataPoint, true, 200);
             highPassFilterSeries.appendData(ecgDetectPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);

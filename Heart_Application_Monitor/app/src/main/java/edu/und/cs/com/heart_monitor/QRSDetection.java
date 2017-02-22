@@ -68,7 +68,6 @@ public class QRSDetection {
         }
 
         return lowPass;
-
     }
 
     public static int[] QRS(float[] lowPass, int nsamp) {

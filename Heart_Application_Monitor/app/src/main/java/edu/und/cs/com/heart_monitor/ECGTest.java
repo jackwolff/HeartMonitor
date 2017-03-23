@@ -203,7 +203,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                     publishProgress();
                     try {
                         Thread.sleep(5);
-                        Log.d("WAIT", "Waiting...");
+                        //Log.d("WAIT", "Waiting...");
                     }
                     catch(Exception e) {
                     }
@@ -243,8 +243,11 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         @Override
         protected void onProgressUpdate(String... values) {
             //DataPoint from the file
+            int offset = 0;
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
             //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
+            if(data.cleanLists())
+                offset++;
             DataPoint lowFilterPoint = new DataPoint(cur_x, data.getFilteredVal(cur_x) / 1152);
             fileSeries.appendData(fileDataPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);

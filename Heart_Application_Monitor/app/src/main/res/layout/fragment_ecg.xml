@@ -14,7 +14,12 @@
         android:layout_weight="0.24"
         android:id="@+id/graphLayout"
         android:background="#ffffff"
-        android:layout_marginTop="20dp"></LinearLayout>
+        android:layout_marginTop="20dp">
+        <com.jjoe64.graphview.GraphView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/graph" />
+    </LinearLayout>
 
     <LinearLayout
         android:orientation="vertical"

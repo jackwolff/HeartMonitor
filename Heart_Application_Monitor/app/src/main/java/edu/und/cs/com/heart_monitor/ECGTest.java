@@ -243,7 +243,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             //DataPoint from the file
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
             //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
-            DataPoint lowFilterPoint = new DataPoint(cur_x, data.getFilteredVal(cur_x) / 1152);
+            DataPoint lowFilterPoint = new DataPoint(cur_x, data.getFilteredVal(cur_x) / 500);
             fileSeries.appendData(fileDataPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
             //highPassFilterSeries.appendData(highFilterPoint, true, 200);

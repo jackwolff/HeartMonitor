@@ -35,7 +35,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
     private LineGraphSeries fileSeries;
     private GraphView ecgGraphView;
 
-    AsyncTask task;
+    AsyncTask task = null;
     private boolean isAsyncTaskCancelled = false;
 
     ECGFilter data;
@@ -115,12 +115,9 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
      */
     private void onFileButton() {
 
-        try {
-            AssetManager mnger = getAssets();
-            InputStream stream = mnger.open("samples/Sample1-Filtered.txt");
-        }
-        catch(Exception e) {
-            Log.d("TAG", e.getMessage());
+        //If we have a task running, return
+        if(task != null){
+            return;
         }
 
         //Get the AssetManager and get all the sample files
@@ -131,6 +128,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             //Create a dialog to select a file to read from
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setTitle("Pick Sample");
+            //Once a file has been chosen, close the dialog and start the task
             builder.setItems(samples, new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int index) {
                     //Close the dialog
@@ -202,8 +200,8 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                     //Plot the points
                     publishProgress();
                     try {
-                        Thread.sleep(5);
-                        //Log.d("WAIT", "Waiting...");
+                        Thread.sleep(1);
+                        Log.d("WAIT", "Waiting...");
                     }
                     catch(Exception e) {
                     }
@@ -243,11 +241,8 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
         @Override
         protected void onProgressUpdate(String... values) {
             //DataPoint from the file
-            int offset = 0;
             DataPoint fileDataPoint = new DataPoint(cur_x, file[cur_x % sample]);
             //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
-            if(data.cleanLists())
-                offset++;
             DataPoint lowFilterPoint = new DataPoint(cur_x, data.getFilteredVal(cur_x) / 1152);
             fileSeries.appendData(fileDataPoint, true, 200);
             lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
@@ -257,7 +252,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                         new DataPoint[] {
                             new DataPoint(cur_x, file[cur_x % sample])
                         });
-                ecgGraphView.addSeries(point);
+                //ecgGraphView.addSeries(point);
             }
         }
     }

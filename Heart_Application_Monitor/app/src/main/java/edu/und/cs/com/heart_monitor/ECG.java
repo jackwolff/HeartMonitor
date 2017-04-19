@@ -23,11 +23,13 @@ import android.view.View.OnClickListener;
 import android.widget.Toast;
 
 import com.bitalino.comm.BITalinoDevice;
+import com.bitalino.comm.BITalinoException;
 import com.bitalino.comm.BITalinoFrame;
 
 import com.jjoe64.graphview.*;
 import com.jjoe64.graphview.series.BaseSeries;
 import com.jjoe64.*;
+import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
 import org.w3c.dom.Text;
@@ -42,7 +44,7 @@ import edu.und.cs.com.heart_monitor.R;
 import retrofit.RestAdapter;
 import retrofit.client.Response;
 import roboguice.activity.RoboActivity;
-
+import java.util.ArrayList;
 import static android.widget.Toast.makeText;
 
 public class ECG extends RoboActivity implements View.OnClickListener {
@@ -60,6 +62,9 @@ public class ECG extends RoboActivity implements View.OnClickListener {
     private boolean keepFile;
     private int RSSI;                                           //bluetooth signal strength TODO ANDREW
     public FileHelper myFileHelper;
+    private ECGFilter filter;
+
+    private final int GRAPH_SIZE = 200;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,31 +73,21 @@ public class ECG extends RoboActivity implements View.OnClickListener {
 
         keepFile = false;                                                               //flag used to indicate whether or not file should be kept
 
+        filter = new ECGFilter();
+
         //let user know it will take a few seconds to start getting readings
         makeText(this, "Establishing Connection to Sensor", Toast.LENGTH_LONG).show();
 
-        //Changes cur_x axis values of graph to seconds instead of frame number
-        final java.text.DateFormat simpleDateFormatter = new SimpleDateFormat("mm:ss");
-        /*signalValueSeries = new GraphViewSeries(new GraphViewData[] {});
-        myGraphView = new GraphView(this, "Electrocardiograph"){
+        signalValueSeries = new LineGraphSeries();
 
-            @Override
-            protected String formatLabel(double value, boolean isValueX) {
-                if (isValueX) {
-                    // convert unix time to human time
-                    return simpleDateFormatter.format(new Date((long) value*65));
-                } else return super.formatLabel(value, isValueX);                       // let the fileY-value be normal-formatted
-            }
-        };*/
+        //Get the graph
+        myGraphView = (GraphView)findViewById(R.id.graph);
         //Set graph options
         myGraphView.addSeries(signalValueSeries);
-        LinearLayout graphLayout = (LinearLayout) findViewById(R.id.graphLayout);
-        //myGraphView.setManualYAxisBounds(900, 200);
-        graphLayout.addView(myGraphView);
-        //myGraphView.setScrollable(true);
-        //myGraphView.setShowHorizontalLabels(false);                                   //remove cur_x axis labels
-        myFileHelper = new FileHelper();
-        myFileHelper.startFile(myFileHelper, getApplicationContext());
+
+        myGraphView.getViewport().setMinX(0);
+        myGraphView.getViewport().setMaxX(GRAPH_SIZE);
+        myGraphView.getViewport().setXAxisBoundsManual(true);
 
         //Find the buttons by their ID
         final Button startButton = (Button) findViewById(R.id.startBTN);
@@ -155,6 +150,8 @@ public class ECG extends RoboActivity implements View.OnClickListener {
 
     private class TestAsyncTask extends AsyncTask<Void, String, Void> {
 
+        int index = 0;
+
         private BluetoothDevice dev = null;
         private BluetoothSocket sock = null;
         private BITalinoDevice bitalino;
@@ -163,57 +160,87 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         SharedPreferences getPreference = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         String macAddress = getPreference.getString("macAddress",null );
         private final int ecgChannel = 1;
-        private final int sampleRate = 8;
+        private final int sampleRate = 6;
+        private int[] reading;
+
+        DataPoint[] point;
+
+        /**
+         * Attempt to connect the to the Bitalino board.
+         * Will throw an exception if the device is not found or
+         * some other problem has occurred.
+         * @throws Exception
+         */
+        private void connectToBitalino() throws Exception {
+            // Get the remote Bluetooth device
+            final String remoteDevice = macAddress;
+            final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+            dev = btAdapter.getRemoteDevice(remoteDevice);
+            //establish bluetooth connection
+            sock = dev.createRfcommSocketToServiceRecord(MY_UUID);
+            sock.connect();
+            testInitiated = true;
+            bitalino = new BITalinoDevice(1000, new int[]{ecgChannel});
+            bitalino.open(sock.getInputStream(), sock.getOutputStream());
+            // start acquisition on predefined analog channels
+            bitalino.start();
+        }
 
         protected Void doInBackground(Void... paramses) {
+            //Attempt to connect to the Bitalino board
             try {
-                // Get the remote Bluetooth device
-                final String remoteDevice = macAddress;
-                final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-                dev = btAdapter.getRemoteDevice(remoteDevice);
-                //establish bluetooth connection
-                sock = dev.createRfcommSocketToServiceRecord(MY_UUID);
-                try {
-                    sock.connect();
-                    testInitiated = true;
-                    bitalino = new BITalinoDevice(1000, new int[]{ecgChannel});
-                    bitalino.open(sock.getInputStream(), sock.getOutputStream());
-                    // start acquisition on predefined analog channels
-                    bitalino.start();
-                    // read until task is stopped
-                    int counter = 0;
-                    //long startTime = System.currentTimeMillis();
-                    while (runTest) {
-                        BITalinoFrame[] frames = bitalino.read(sampleRate);//read(number of frames to read)
-                        if (UPLOAD) {
-                            // prepare reading for upload
-                            BITalinoReading reading = new BITalinoReading();
-                            reading.setTimestamp(System.currentTimeMillis());
-                            reading.setFrames(frames);
-                        }
-                        // go into frames to gather data from sensors
-                        for (BITalinoFrame frame : frames) {
-                            //analog 2 == ECG
-                            currentValue = frame.getAnalog(ecgChannel);
-                        }
-                        currentFrameNumber = counter;
-                        //output results to screen using onProgressUpdate()
-                        publishProgress(Integer.toString(currentValue), Integer.toString(counter));
-                        counter++;
-                    }
-                }catch(Exception e){              //error opening socket
-                    connectionFailure = true;     //flag that connection has failed
-                    runTest = false;              //flag that the test has not run
-                    testFailed = true;            //flag indicates the test has failed
-                    publishProgress();
-                }
-            } catch (Exception e) { //error connecting to bluetooth
-                runTest = false;
-                testFailed = true;
-                Log.e(TAG, "There was an error connecting to phones bluetooth.", e);
+                connectToBitalino();
             }
-            onCancelled();                          //close input and output streams and close socket
-            myThread.cancel(true);                  //terminate thread
+            catch(Exception e) {
+                Toast.makeText(getApplicationContext(), "Unable to connect to Bitalino board.",
+                        Toast.LENGTH_LONG);
+                return null;
+            }
+
+            point = new DataPoint[GRAPH_SIZE];
+            for(int i = 0; i < point.length; i++) {
+                point[i] = new DataPoint(i, 0);
+            }
+
+            try {
+                while (runTest) {
+                    BITalinoFrame[] frames = null;
+                    try {
+                        frames = bitalino.read(sampleRate);//read(number of frames to read)
+                    }
+                    catch(BITalinoException e) {
+                        Log.d("BITalinoException", e.getMessage());
+                    }
+
+                    if(frames != null) {
+                        reading = new int[frames.length];
+                        // go into frames to gather data from sensors
+                        for (int i = 0; i < frames.length; i++) {
+                            //analog 2 == ECG
+                            reading[i] = frames[i].getAnalog(ecgChannel);
+                            //Add the point to the filter
+                            //filter.addPoint(reading[i]);
+                        }
+                        //output results to screen using onProgressUpdate()
+                        publishProgress();
+                        try {
+                            Thread.sleep(20);
+                        }
+                        catch(Exception e) {
+
+                        }
+                    }
+                }
+            }catch(Exception e) {              //error opening socket
+                Log.d("Exception", e.getMessage());
+                connectionFailure = true;     //flag that connection has failed
+                runTest = false;              //flag that the test has not run
+                testFailed = true;            //flag indicates the test has failed
+                publishProgress();
+
+            }
+            //close input and output streams and close socket
+                //terminate thread
             return null;
         }
         /*
@@ -223,12 +250,20 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         protected void onProgressUpdate(String... values) {
             //If the connection has failed, show a message
             if(connectionFailure == true) {
-                Toast.makeText(getApplicationContext(),"Unable to establish connection", Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(),"Unable to establish connection",
+                        Toast.LENGTH_LONG).show();
             }else {
-                //signalValueSeries.appendData(new GraphViewData(currentFrameNumber, currentValue), false, 200);
-                //update graph with new data value "appendData((cur_x value, fileY value), notsure?, max number of points on graph)"
-                myFileHelper.appendFile(myFileHelper,currentFrameNumber / sampleRate, currentValue, getApplicationContext());
-                //myGraphView.redrawAll();
+
+                for(int i = 0; i < point.length - reading.length; i++) {
+                    point[i] = point[i + reading.length];
+                }
+                int readIndex = 0;
+                for(int i = point.length - reading.length; i < point.length; i++) {
+                    point[i] = new DataPoint((point[i].getX() + reading.length), reading[readIndex]);
+                    readIndex++;
+                }
+                signalValueSeries.resetData(point);
+                myGraphView.getViewport().scrollToEnd();
             }
         }
 
@@ -236,7 +271,7 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         protected void onCancelled() {
             // stop acquisition and close bluetooth connection
             try {
-                // bitalino.stop();         //signal board to quit sending packets
+                bitalino.stop();         //signal board to quit sending packets
                 InputStream is = null;      //close input and output streams
                 OutputStream os = null;
                 sock.close();               //close socket on this end

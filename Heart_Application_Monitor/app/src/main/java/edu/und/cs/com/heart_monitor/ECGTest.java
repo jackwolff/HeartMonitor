@@ -38,6 +38,9 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
     private LineGraphSeries fileSeries;
     private GraphView myGraphView;
 
+    private int lastQRS = 0;
+    private double averageRR = -1;
+
     private ArrayList<Integer> RR = new ArrayList<Integer>();
 
     private PointsGraphSeries QRSMark;
@@ -240,7 +243,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                         //Plot the points
                         publishProgress();
                         try {
-                            Thread.sleep(5);
+                            Thread.sleep(0, 1);
                             Log.d("WAIT", "Waiting...");
                         }
                         catch(Exception e) {
@@ -276,6 +279,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                 }
                 else if (x == 500)
                 {
+                    lastQRS = 0;
                     THR_SIG = THR_SIG*0.8;
                     THR_NOISE = THR_SIG/2;
                 }
@@ -285,12 +289,20 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                     Log.d("Is maxima: ", "" + file[x-1] + ">" + THR_SIG + ":" + (file[x-1] > THR_SIG));
                     if (file[x-1] > i && file[x-2] < file[x-1] && file[x-1] > THR_SIG) //file[x-1] is a local maxima
                     {
-                        QRSMark.appendData(new DataPoint(x-1, file[x-1]), true, 200);
-                        THR_SIG = THR_SIG*0.875 + file[x-1]*0.125;
-                        calcRR(x-1);
+                        addQRS(x-1);
+                    }
+                    else
+                    {
+                        lastQRS++;
                     }
                     Log.d("THR_SIG: ", "" + THR_SIG);
                     Log.d("THR_NOISE: ", "" + THR_NOISE);
+                    Log.d("Samples since last QRS", "" + lastQRS);
+                    if (averageRR > 0 && lastQRS > 1.66*averageRR)
+                    {
+                        //Log.d("Initiate Traceback", lastQRS + " > " + 1.66*averageRR);
+                        traceback();
+                    }
                 }
 
                 return i;
@@ -361,7 +373,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
 
             if (RR.size() > 1)
             {
-                double averageRR = 0;
+                averageRR = 0;
                 for (int i = 0; i < RR.size()-1; i++)
                 {
                     averageRR += RR.get(i+1) - RR.get(i);
@@ -375,7 +387,43 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
 
                 Log.d("----------BPM---------", bpm + "");
             }
+        }
 
+        protected void traceback()
+        {
+            int maxPeakIndex = -1;
+
+            for (int i = RR.get(RR.size()-1)+5; i < RR.get(RR.size()-1)+lastQRS; i++) //change +5 to delay
+            {
+                if (file[i-1] < file[i] && file[i] < file[i+1] && file[i] > THR_NOISE)
+                {
+                    if (maxPeakIndex == -1)
+                    {
+                        maxPeakIndex = i;
+                    }
+                    else
+                    {
+                        if (file[maxPeakIndex] < file[i])
+                        {
+                            maxPeakIndex = i;
+                        }
+                    }
+                }
+            }
+
+            if (maxPeakIndex != -1)
+            {
+                addQRS(maxPeakIndex);
+            }
+        }
+
+        protected void addQRS(int i)
+        {
+            QRSMark.appendData(new DataPoint(i, file[i]), true, 200);
+            THR_SIG = THR_SIG*0.875 + file[i]*0.125;
+            calcRR(i);
+
+            lastQRS = 0;
         }
     }
 }

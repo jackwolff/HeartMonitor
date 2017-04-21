@@ -1,4 +1,6 @@
 package edu.und.cs.com.heart_monitor;
+import android.util.Log;
+
 import java.util.ArrayList;
 
 /**
@@ -32,7 +34,30 @@ public class ECGFilter {
      * @return Value from filtered array
      */
     public int getFilteredVal(int x) {
-        return filterList.get(x);
+        int movAverage = 0;
+        if(x > 100)
+        {
+            movAverage = 0;
+            for(int i = x - 99; i <= x; i++)
+            {
+               movAverage = movAverage + filterList.get(i);
+            }
+            movAverage = movAverage/100;
+        }
+
+        return filterList.get(x) - movAverage;
+    }
+    public boolean cleanLists(){
+        if(filterList.size()>5000){
+            rawList.remove(0);
+            lowPassList.remove(0);
+            filterList.remove(0);
+            Log.d("filterlistSize", Integer.toString(filterList.size()));
+            return true;
+        }
+
+        return false;
+
     }
 
     /**

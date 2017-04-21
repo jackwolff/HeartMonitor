@@ -243,7 +243,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                         //Plot the points
                         publishProgress();
                         try {
-                            Thread.sleep(0, 1);
+                            Thread.sleep(20);
                             Log.d("WAIT", "Waiting...");
                         }
                         catch(Exception e) {

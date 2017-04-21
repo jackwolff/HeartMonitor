@@ -346,23 +346,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                 thr_sig_series.appendData(THR_SIG_Point, true, 200);
                 thr_noise_series.appendData(THR_NOISE_POINT, true, 200);
             }
-            //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
-            //DataPoint lowFilterPoint = new DataPoint(cur_x, lowFilter[cur_x % sample]);
-            //if (cur_x % sample < 246)
-            //{
-                //DataPoint derivativePoint = new DataPoint(cur_x, derivative[cur_x % sample]);
-                //derivativeSeries.appendData(derivativePoint, true, 200);
-            //}
             fileSeries.appendData(fileDataPoint, true, 200);
-            //lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
-            //highPassFilterSeries.appendData(highFilterPoint, true, 200);
-            /**if(qrs[cur_x % sample] == 1) {
-                PointsGraphSeries<DataPoint> point = new PointsGraphSeries<>(
-                        new DataPoint[] {
-                            new DataPoint(cur_x, file[cur_x % sample])
-                        });
-                myGraphView.addSeries(point);
-            }*/
         }
 
         protected void calcRR(int x)

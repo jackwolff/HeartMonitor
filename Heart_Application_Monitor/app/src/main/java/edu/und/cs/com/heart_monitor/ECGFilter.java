@@ -41,7 +41,7 @@ public class ECGFilter {
      */
     private void lowPass(){
         //Need enough data to properly filter
-        if(rawList.size() < 12) {
+        if(rawList.size() < 13) {
             lowPassList.add(rawList.get(rawList.size() - 1));
             return;
         }
@@ -63,7 +63,7 @@ public class ECGFilter {
      */
     private void highPass(){
         //Need enough data to properly filter
-        if(lowPassList.size() < 32) {
+        if(lowPassList.size() < 33) {
             filterList.add(lowPassList.get(lowPassList.size() - 1));
             return;
         }

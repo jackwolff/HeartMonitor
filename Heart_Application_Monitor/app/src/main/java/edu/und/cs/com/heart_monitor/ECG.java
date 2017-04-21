@@ -219,7 +219,7 @@ public class ECG extends RoboActivity implements View.OnClickListener {
                             //analog 2 == ECG
                             reading[i] = frames[i].getAnalog(ecgChannel);
                             //Add the point to the filter
-                            //filter.addPoint(reading[i]);
+                            filter.addPoint(reading[i]);
                         }
                         //output results to screen using onProgressUpdate()
                         publishProgress();

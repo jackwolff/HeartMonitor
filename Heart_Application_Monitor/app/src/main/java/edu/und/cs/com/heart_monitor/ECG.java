@@ -3,7 +3,6 @@ package edu.und.cs.com.heart_monitor;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.AsyncTask;
@@ -14,6 +13,7 @@ import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+import android.widget.TextView;
 
 import com.bitalino.comm.BITalinoDevice;
 import com.bitalino.comm.BITalinoException;
@@ -22,9 +22,8 @@ import com.bitalino.comm.BITalinoFrame;
 import com.jjoe64.graphview.*;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
+import com.jjoe64.graphview.series.PointsGraphSeries;
 
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.UUID;
 
 import roboguice.activity.RoboActivity;
@@ -34,14 +33,15 @@ import static android.widget.Toast.makeText;
 public class ECG extends RoboActivity implements View.OnClickListener {
 
     private static final String TAG = "MainActivity";
-    private LineGraphSeries signalValueSeries;
-    private LineGraphSeries filteredValueSeries;
+    private LineGraphSeries liveValueSeries;
+    //private LineGraphSeries thresValueSeries;
+    //private LineGraphSeries sigValueSeries;
+
+    //private PointsGraphSeries pointSeries;
+
     private GraphView myGraphView;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private AsyncTask myThread;
-    private ECGFilter filter;
-
-    private static int rawAverage = 0;
 
     private static final int GRAPH_SIZE = 200;
 
@@ -50,21 +50,26 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.fragment_ecg);
 
-        filter = new ECGFilter();
-
         //let user know it will take a few seconds to start getting readings
         makeText(this, "Establishing Connection to Sensor", Toast.LENGTH_LONG).show();
 
-        signalValueSeries = new LineGraphSeries();
+        liveValueSeries = new LineGraphSeries();
 
-        filteredValueSeries = new LineGraphSeries();
-        filteredValueSeries.setColor(Color.GREEN);
+        //thresValueSeries = new LineGraphSeries();
+        //thresValueSeries.setColor(Color.GREEN);
+
+        //sigValueSeries = new LineGraphSeries();
+        //sigValueSeries.setColor(Color.RED);
+
+        //pointSeries = new PointsGraphSeries();
 
         //Get the graph
         myGraphView = (GraphView)findViewById(R.id.graph);
         //Set graph options
-        myGraphView.addSeries(signalValueSeries);
-        //myGraphView.addSeries(filteredValueSeries);
+        myGraphView.addSeries(liveValueSeries);
+        //myGraphView.addSeries(sigValueSeries);
+        //myGraphView.addSeries(thresValueSeries);
+        //myGraphView.addSeries(pointSeries);
 
         //Set x axis max and min
         myGraphView.getViewport().setMinX(0);
@@ -97,10 +102,6 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         else {
             Toast.makeText(this, "Enable bluetooth first.", Toast.LENGTH_LONG).show();
         }
-    }
-
-    public static int getRawAverage() {
-        return rawAverage;
     }
 
     @Override
@@ -150,14 +151,28 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         SharedPreferences getPreference = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         String macAddress = getPreference.getString("macAddress",null );
         private final int ecgChannel = 1;
-        private final int sampleRate = 10;
+        private final int frameSize = 10;
         private int[] reading;
+        private final int SRATE = 100;
+        private double THR_SIG = Integer.MIN_VALUE;
+        private double THR_NOISE = 0;
+        private int lastQRS = -1;
+        private int candidateX = -1;
+        private double candidateY = Integer.MIN_VALUE;
+        private int numRR = 0;
+        private double aveRR = 0;
+        private int prevQRS = 0;
+
+        private TextView lblBPM;
+        private TextView lblAnomaly;
 
         private boolean runTest = true;
 
         DataPoint[] readingPoint;
+        DataPoint[] thresPoint;
+        DataPoint[] sigPoint;
 
-        DataPoint[] filteredPoint;
+        private static final int REC_SIZE = 400;
 
         /**
          * Attempt to connect the to the Bitalino board.
@@ -191,12 +206,17 @@ public class ECG extends RoboActivity implements View.OnClickListener {
                 return null;
             }
 
-            filteredPoint = new DataPoint[GRAPH_SIZE];
-            readingPoint = new DataPoint[GRAPH_SIZE];
+            readingPoint = new DataPoint[REC_SIZE];
+            thresPoint = new DataPoint[REC_SIZE];
+            sigPoint = new DataPoint[REC_SIZE];
+
+            lblBPM =  (TextView)findViewById(R.id.lblBPM);
+            lblAnomaly = (TextView)findViewById(R.id.lblAnomaly);
 
             for(int i = 0; i < readingPoint.length; i++) {
-                filteredPoint[i] = new DataPoint(i, 0);
                 readingPoint[i] = new DataPoint(i, 0);
+                thresPoint[i] = new DataPoint(i, 0);
+                sigPoint[i] = new DataPoint(i, 0);
             }
 
             try {
@@ -208,7 +228,7 @@ public class ECG extends RoboActivity implements View.OnClickListener {
 
                     BITalinoFrame[] frames = null;
                     try {
-                        frames = bitalino.read(sampleRate);//read(number of frames to read)
+                        frames = bitalino.read(this.frameSize);//read(number of frameSize to read)
                     }
                     catch(BITalinoException e) {
                         Log.d("BITalinoException", e.getMessage());
@@ -216,15 +236,11 @@ public class ECG extends RoboActivity implements View.OnClickListener {
 
                     if(frames != null) {
                         reading = new int[frames.length];
-                        // go into frames to gather data from sensors
+                        // go into frameSize to gather data from sensors
                         for (int i = 0; i < frames.length; i++) {
                             //analog 2 == ECG
                             reading[i] = frames[i].getAnalog(ecgChannel);
-                            rawAverage += reading[i];
-                            //Add the readingPoint to the filter
-                            //filter.addPoint(reading[i]);
                         }
-                        rawAverage = rawAverage / reading.length;
                         //output results to screen using onProgressUpdate()
                         publishProgress();
                         try {
@@ -258,7 +274,8 @@ public class ECG extends RoboActivity implements View.OnClickListener {
             //on the left hand part of the graph
             for(int i = 0; i < readingPoint.length - reading.length; i++) {
                 readingPoint[i] = readingPoint[i + reading.length];
-                filteredPoint[i] = filteredPoint[i + reading.length];
+                thresPoint[i] = thresPoint[i + reading.length];
+                sigPoint[i] = sigPoint[i + reading.length];
             }
 
             //Add the new points to the end of the array
@@ -266,13 +283,22 @@ public class ECG extends RoboActivity implements View.OnClickListener {
             for(int i = readingPoint.length - reading.length; i < readingPoint.length; i++) {
                 readingPoint[i] = new DataPoint((readingPoint[i].getX() + reading.length),
                         reading[readIndex]);
-                filteredPoint[i] = new DataPoint((readingPoint[i].getX()),
-                        filter.getValue(index));
-                index++;
+                thresPoint[i] = new DataPoint(readingPoint[i].getX(), THR_SIG);
+                sigPoint[i] = new DataPoint(readingPoint[i].getX(), THR_NOISE);
                 readIndex++;
             }
-            signalValueSeries.resetData(readingPoint);
-            //filteredValueSeries.resetData(filteredPoint);
+
+            if (readingPoint[readingPoint.length-1].getX() >= REC_SIZE + frameSize)
+            {
+                for (int i = 0; i < frameSize; i++)
+                {
+                    scanPoints(readingPoint.length - frameSize + i);
+                }
+            }
+
+            liveValueSeries.resetData(readingPoint);
+            //sigValueSeries.resetData(sigPoint);
+            //thresValueSeries.resetData(thresPoint);
             myGraphView.getViewport().scrollToEnd();
         }
 
@@ -287,6 +313,101 @@ public class ECG extends RoboActivity implements View.OnClickListener {
             }
         }
 
+        protected void scanPoints(int i)
+        {
+            if (prevQRS > aveRR*1.66 && candidateX != -1)
+            {
+                addQRS(candidateX, candidateY);
+            }
+            double curY = readingPoint[i].getY();
+
+            if (readingPoint[i].getX() < REC_SIZE + (2 * SRATE))
+            {
+                THR_SIG = THR_SIG >= curY ? THR_SIG : curY;
+                Log.d("Learning", "THR_SIG: " + THR_SIG + " (" + readingPoint[i].getX() + "," +  + readingPoint[i].getY() + ")");
+            }
+            else if ((int)readingPoint[i].getX() == REC_SIZE + (2 * SRATE))
+            {
+                THR_SIG = THR_SIG * 0.95;
+                THR_NOISE = THR_SIG / 2;
+                prevQRS = 0;
+                Log.d("Initial", "THR_SIG: " + THR_SIG + " (" + readingPoint[i].getX() + "," +  + readingPoint[i].getY() + ")");
+            }
+            else
+            {
+                Log.d("Checking for maxima:  ", "" + (readingPoint[i-2].getY() < readingPoint[i-1].getY() && readingPoint[i-1].getY() > readingPoint[i].getY() && readingPoint[i-1].getY() > THR_SIG));
+                Log.d("Is maxima: ", "" + (readingPoint[i-2].getY() < readingPoint[i-1].getY() && readingPoint[i-1].getY() > readingPoint[i].getY() && readingPoint[i-1].getY() > THR_SIG));
+
+                //point is a peak
+                if (readingPoint[i-2].getY() < readingPoint[i-1].getY() && readingPoint[i-1].getY() > readingPoint[i].getY()) //file[x-1] is a local maxima
+                {
+                    if (readingPoint[i-1].getY() > THR_SIG)
+                    {
+                        //add QRS and adjust thresholds
+                        addQRS((int)readingPoint[i-1].getX(), readingPoint[i-1].getY());
+                    }
+                    else if (readingPoint[i-1].getY() > THR_NOISE)
+                    {
+                        if (candidateX == -1)
+                        {
+                            candidateX = (int)readingPoint[i-1].getX();
+                            candidateY = readingPoint[i-1].getY();
+                        }
+                        else if (readingPoint[i-1].getY() > candidateY)
+                        {
+                            candidateX = (int)readingPoint[i-1].getX();
+                            candidateY = readingPoint[i-1].getY();
+                        }
+                    }
+                }
+            }
+            prevQRS++;
+        }
+
+        protected void addQRS(int x, double y)
+        {
+            //pointSeries.appendData(new DataPoint(x, y), true, 10);
+
+            //update threshold
+            THR_SIG = THR_SIG*0.875 + y*0.125;
+            Log.d("Adapting", "THR_SIG: " + THR_SIG + " (" + x + "," + y + ")");
+            calcRR(x, y);
+            candidateX = -1;
+            candidateY = -1;
+            prevQRS = 0;
+        }
+
+        protected void calcRR(int x, double y)
+        {
+            int newQRS = x;
+            int RR = newQRS - lastQRS;
+            if (lastQRS != -1 && RR != 0)
+            {
+                RR = newQRS - lastQRS;
+                numRR++;
+                aveRR = ((aveRR*numRR-1)+RR)/(numRR);
+                double bpm = 0;
+
+                bpm = 60/((double)RR/(double)SRATE);
+
+                bpm = ((double)((int)(bpm*100)))/100;
+
+                lblBPM.setText("BPM: " + bpm);
+                if (bpm < 50)
+                {
+                    lblAnomaly.setText("Anomaly: Bradycardia");
+                }
+                else if (bpm > 100)
+                {
+                    lblAnomaly.setText("Anomaly: Tachycardia");
+                }
+                else
+                {
+                    lblAnomaly.setText("Anomaly: ---");
+                }
+            }
+            lastQRS = newQRS;
+        }
    }
 
 }

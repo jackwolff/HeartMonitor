@@ -10,32 +10,55 @@
     <LinearLayout
         android:orientation="vertical"
         android:layout_width="fill_parent"
-        android:layout_height="196dp"
+        android:layout_height="204dp"
         android:layout_weight="0.24"
         android:id="@+id/graphLayout"
         android:background="#ffffff"
         android:layout_marginTop="20dp">
+
         <com.jjoe64.graphview.GraphView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:id="@+id/graph" />
+
     </LinearLayout>
 
     <LinearLayout
-        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="35dp"
+        android:layout_marginTop="10dp">
+
+        <TextView
+            android:id="@+id/lblBPM"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.24"
+            android:text="BPM: --- " />
+
+        <TextView
+            android:id="@+id/lblAnomaly"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.24"
+            android:text="Anomaly: --- " />
+
+    </LinearLayout>
+
+    <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="50dp"
-        android:layout_marginTop="25dp">
+        android:layout_marginTop="10dp"
+        android:orientation="vertical">
 
         <Button
+            android:id="@+id/startBTN"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:text="@string/start_button"
-            android:id="@+id/startBTN"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="10dp"
-            android:layout_marginTop="10dp" />
+            android:layout_marginTop="10dp"
+            android:text="@string/start_button" />
 
         <Button
             android:id="@+id/stopBTN"
@@ -45,10 +68,10 @@
             android:text="@string/stop_button" />
 
         <Button
+            android:id="@+id/backBTN"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:text="@string/back_button"
-            android:id="@+id/backBTN" />
+            android:text="@string/back_button" />
     </LinearLayout>
 
 </LinearLayout>

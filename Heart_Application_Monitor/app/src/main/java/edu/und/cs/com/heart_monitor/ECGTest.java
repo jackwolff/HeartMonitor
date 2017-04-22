@@ -243,7 +243,7 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                         //Plot the points
                         publishProgress();
                         try {
-                            Thread.sleep(0, 1);
+                            Thread.sleep(20);
                             Log.d("WAIT", "Waiting...");
                         }
                         catch(Exception e) {
@@ -313,22 +313,21 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
             }
 
             /**
-            file = new int[sample];
-            String[] line;
-            for (int x = 0; x < sample; x++) {
-                try {
-                    line = reader.readLine().split(",");
-                    file[x] = Integer.parseInt(line[1]);
-                }
-                catch(Exception e) {
-                    Log.d("ECGTest", e.getMessage());
-                }
-            }
-
-            //highFilter = QRSDetection.highPass(file, sample);
-            //lowFilter = QRSDetection.lowPass(highFilter, sample);
-            //qrs = QRSDetection.QRS(lowFilter, sample);
-            //derivative = QRSDetection.derivative(file, 500);
+             file = new int[sample];
+             String[] line;
+             for (int x = 0; x < sample; x++) {
+             try {
+             line = reader.readLine().split(",");
+             file[x] = Integer.parseInt(line[1]);
+             }
+             catch(Exception e) {
+             Log.d("ECGTest", e.getMessage());
+             }
+             }
+             //highFilter = QRSDetection.highPass(file, sample);
+             //lowFilter = QRSDetection.lowPass(highFilter, sample);
+             //qrs = QRSDetection.QRS(lowFilter, sample);
+             //derivative = QRSDetection.derivative(file, 500);
              */
             return 100;
         }
@@ -346,7 +345,23 @@ public class ECGTest extends RoboActivity implements View.OnClickListener {
                 thr_sig_series.appendData(THR_SIG_Point, true, 200);
                 thr_noise_series.appendData(THR_NOISE_POINT, true, 200);
             }
+            //DataPoint highFilterPoint = new DataPoint(cur_x, highFilter[cur_x % sample]);
+            //DataPoint lowFilterPoint = new DataPoint(cur_x, lowFilter[cur_x % sample]);
+            //if (cur_x % sample < 246)
+            //{
+            //DataPoint derivativePoint = new DataPoint(cur_x, derivative[cur_x % sample]);
+            //derivativeSeries.appendData(derivativePoint, true, 200);
+            //}
             fileSeries.appendData(fileDataPoint, true, 200);
+            //lowPassFilterSeries.appendData(lowFilterPoint, true, 200);
+            //highPassFilterSeries.appendData(highFilterPoint, true, 200);
+            /**if(qrs[cur_x % sample] == 1) {
+             PointsGraphSeries<DataPoint> point = new PointsGraphSeries<>(
+             new DataPoint[] {
+             new DataPoint(cur_x, file[cur_x % sample])
+             });
+             myGraphView.addSeries(point);
+             }*/
         }
 
         protected void calcRR(int x)

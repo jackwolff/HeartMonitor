@@ -89,9 +89,6 @@ public class ViewRecording extends ActionBarActivity implements View.OnClickList
             case R.id.backBTN:
                 android.os.Process.killProcess(android.os.Process.myPid());
                 break;
-            case R.id.storeBTN:
-                Toast.makeText(this, "Email sent", Toast.LENGTH_LONG).show();
-                break;
         }
     }
 }

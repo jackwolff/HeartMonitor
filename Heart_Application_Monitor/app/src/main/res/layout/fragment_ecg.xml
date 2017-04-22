@@ -38,18 +38,11 @@
             android:layout_marginTop="10dp" />
 
         <Button
+            android:id="@+id/stopBTN"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:text="@string/stop_button"
-            android:id="@+id/quitBTN"
-            android:layout_marginBottom="10dp" />
-
-        <Button
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/store_button"
-            android:id="@+id/storeBTN"
-            android:layout_marginBottom="10dp" />
+            android:layout_marginBottom="10dp"
+            android:text="@string/stop_button" />
 
         <Button
             android:layout_width="fill_parent"

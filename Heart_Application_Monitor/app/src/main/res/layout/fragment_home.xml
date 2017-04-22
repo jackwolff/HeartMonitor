@@ -67,30 +67,33 @@
             android:layout_marginBottom="5dp"
             android:layout_marginLeft="70dp"
             android:textSize="15dp" />
+
     </LinearLayout>
 
+
+
     <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginTop="20dp">
+        android:layout_marginTop="40dp"
+        android:orientation="vertical">
 
         <TextView
+            android:id="@+id/textView"
             android:layout_width="308dp"
             android:layout_height="wrap_content"
-            android:text="To start the ECG capture press the button below. Swipe to the right or click the buttons below to go to view reports, see the tutorial, etc. "
-            android:id="@+id/textView"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="25dp"
-            android:layout_marginTop="25dp" />
+            android:layout_marginTop="25dp"
+            android:text="To start the ECG capture press the button below. Swipe to the right or click the buttons below to go to view reports, see the tutorial, etc. " />
 
         <Button
+            android:id="@+id/btnECG"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/ecg"
-            android:id="@+id/btnECG"
-            android:layout_gravity="center_horizontal" />
+            android:layout_gravity="center_horizontal"
+            android:text="@string/ecg" />
 
     </LinearLayout>
 

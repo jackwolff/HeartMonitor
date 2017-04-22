@@ -18,6 +18,8 @@ public class ECGFilter {
     //Values that have gone through both the high and low pass and are filtered
     private ArrayList<Integer> filterList = new ArrayList<Integer>();
 
+    int lowPassMovAverage = 0;
+
     /**
      * Takes a value from an ECG reading and filters it
      * @param rawValue value from the ECG reading
@@ -28,45 +30,21 @@ public class ECGFilter {
         highPass();
     }
 
-    /**
-     * Get a value from the filtered list
-     * @param x The index in the array
-     * @return Value from filtered array
-     */
-    public int getFilteredVal(int x) {
-        int movAverage = 0;
-        if(x > 100)
-        {
-            movAverage = 0;
-            for(int i = x - 99; i <= x; i++)
-            {
-               movAverage = movAverage + filterList.get(i);
-            }
-            movAverage = movAverage/100;
-        }
-
-        return filterList.get(x) - movAverage;
-    }
-    public boolean cleanLists(){
-        if(filterList.size()>5000){
-            rawList.remove(0);
-            lowPassList.remove(0);
-            filterList.remove(0);
-            Log.d("filterlistSize", Integer.toString(filterList.size()));
-            return true;
-        }
-
-        return false;
-
+    public int getValue(int i) {
+        if(i >= filterList.size())
+            return 0;
+        else if(filterList.size() == 0)
+            return 0;
+        return filterList.get(i);
     }
 
     /**
      * Uses Pan-Tompkins difference equation to filter out
      * high frequencies
      */
-    private void lowPass(){
+    private void lowPass() {
         //Need enough data to properly filter
-        if(rawList.size() < 13) {
+        if (rawList.size() < 13) {
             lowPassList.add(rawList.get(rawList.size() - 1));
             return;
         }
@@ -78,7 +56,7 @@ public class ECGFilter {
         x12 = rawList.get(rawList.size() - 13);
         y1 = lowPassList.get(lowPassList.size() - 1);
         y2 = lowPassList.get(lowPassList.size() - 2);
-        y = 2*y1 - y2 + x - 2*x6 + x12;
+        y = 2 * y1 - y2 + x - 2 * x6 + x12;
         lowPassList.add(y);
     }
 

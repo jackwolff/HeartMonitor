@@ -3,23 +3,16 @@ package edu.und.cs.com.heart_monitor;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.preference.EditTextPreference;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.view.View.OnClickListener;
 import android.widget.Toast;
 
 import com.bitalino.comm.BITalinoDevice;
@@ -27,51 +20,35 @@ import com.bitalino.comm.BITalinoException;
 import com.bitalino.comm.BITalinoFrame;
 
 import com.jjoe64.graphview.*;
-import com.jjoe64.graphview.series.BaseSeries;
-import com.jjoe64.*;
 import com.jjoe64.graphview.series.DataPoint;
 import com.jjoe64.graphview.series.LineGraphSeries;
 
-import org.w3c.dom.Text;
-
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.UUID;
 
-import edu.und.cs.com.heart_monitor.R;
-import retrofit.RestAdapter;
-import retrofit.client.Response;
 import roboguice.activity.RoboActivity;
-import java.util.ArrayList;
+
 import static android.widget.Toast.makeText;
 
 public class ECG extends RoboActivity implements View.OnClickListener {
 
     private static final String TAG = "MainActivity";
-    private static final boolean UPLOAD = false;
     private LineGraphSeries signalValueSeries;
+    private LineGraphSeries filteredValueSeries;
     private GraphView myGraphView;
-    boolean runTest = true;
-    boolean testFailed = false;
-    boolean connectionFailure = false;
     private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
-    private boolean testInitiated = false;
     private AsyncTask myThread;
-    private boolean keepFile;
-    private int RSSI;                                           //bluetooth signal strength TODO ANDREW
-    public FileHelper myFileHelper;
     private ECGFilter filter;
 
-    private final int GRAPH_SIZE = 200;
+    private static int rawAverage = 0;
+
+    private static final int GRAPH_SIZE = 200;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.fragment_ecg);
-
-        keepFile = false;                                                               //flag used to indicate whether or not file should be kept
 
         filter = new ECGFilter();
 
@@ -80,62 +57,78 @@ public class ECG extends RoboActivity implements View.OnClickListener {
 
         signalValueSeries = new LineGraphSeries();
 
+        filteredValueSeries = new LineGraphSeries();
+        filteredValueSeries.setColor(Color.GREEN);
+
         //Get the graph
         myGraphView = (GraphView)findViewById(R.id.graph);
         //Set graph options
         myGraphView.addSeries(signalValueSeries);
+        //myGraphView.addSeries(filteredValueSeries);
 
+        //Set x axis max and min
         myGraphView.getViewport().setMinX(0);
         myGraphView.getViewport().setMaxX(GRAPH_SIZE);
+
+        //Set y axis max and min
+        myGraphView.getViewport().setMinY(400);
+        myGraphView.getViewport().setMaxY(700);
+
         myGraphView.getViewport().setXAxisBoundsManual(true);
+        myGraphView.getViewport().setYAxisBoundsManual(true);
+
+        //myGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+        //myGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
 
         //Find the buttons by their ID
         final Button startButton = (Button) findViewById(R.id.startBTN);
-        final Button quitButton = (Button) findViewById(R.id.quitBTN);
+        final Button stopButton = (Button) findViewById(R.id.stopBTN);
         final Button backButton = (Button) findViewById(R.id.backBTN);
-        final Button storeButton = (Button) findViewById(R.id.storeBTN);
 
         //Listen for button presses
         startButton.setOnClickListener(this);
-        quitButton.setOnClickListener(this);
+        stopButton.setOnClickListener(this);
         backButton.setOnClickListener(this);
-        storeButton.setOnClickListener(this);
 
         // execute
-        if (!testInitiated) {
+        if(BluetoothAdapter.getDefaultAdapter().isEnabled()) {
             myThread = new TestAsyncTask().execute();
         }
+        else {
+            Toast.makeText(this, "Enable bluetooth first.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public static int getRawAverage() {
+        return rawAverage;
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.startBTN:
-                runTest = false;                                                                                    //ensure current test terminates correctly
-                myFileHelper.closeFile(myFileHelper, getApplicationContext());                                       //close file output stream
-                if(keepFile != true) getApplicationContext().deleteFile(myFileHelper.fileName);
-                startActivity(new Intent(ECG.this, ECG.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                if(myThread == null) {
+                    myThread = new TestAsyncTask().execute();
+                }
+                else if(myThread.getStatus() != AsyncTask.Status.RUNNING ||
+                        myThread.getStatus() == AsyncTask.Status.PENDING) {
+                    myThread = new TestAsyncTask().execute();
+                }
                 break;
-            case R.id.quitBTN:
-                runTest = false;
-                myFileHelper.closeFile(myFileHelper, getApplicationContext());
+            case R.id.stopBTN:
+                if(myThread != null) {
+                    myThread.cancel(true);
+                }
                 break;
             case R.id.backBTN:
-                runTest = false;
-                myFileHelper.closeFile(myFileHelper, getApplicationContext());
-                if(keepFile != true) getApplicationContext().deleteFile(myFileHelper.fileName);
-                android.os.Process.killProcess(android.os.Process.myPid());
-                startActivity(new Intent(ECG.this, MainActivity.class));
-                break;
-            case R.id.storeBTN:
-                if((runTest == true)&&(testFailed == false)&&(testInitiated == true)){                              //test is still running
-                    Toast.makeText(this, "Stop test first!", Toast.LENGTH_LONG).show();
-                }else if((runTest == false)&&(testFailed == false)&&(testInitiated == true)){                       //test has run successfully, has stopped, can store file
-                    Toast.makeText(this, "File " + myFileHelper.fileName + " created", Toast.LENGTH_LONG).show();
-                    keepFile = true;
-                    myFileHelper.closeFile(myFileHelper, getApplicationContext());
-                }else if((runTest == false)&&(testFailed == true)&&(testInitiated == false)){                       //test is not running and an error of some kind occurred
-                    Toast.makeText(this, "No recording made", Toast.LENGTH_LONG).show();
+                if(myThread != null) {
+                    myThread.cancel(true);
+                }
+                if (getFragmentManager().getBackStackEntryCount() != 0) {
+                    getFragmentManager().popBackStack();
+                }
+                else {
+                    super.onBackPressed();
                 }
                 break;
         }
@@ -151,19 +144,20 @@ public class ECG extends RoboActivity implements View.OnClickListener {
     private class TestAsyncTask extends AsyncTask<Void, String, Void> {
 
         int index = 0;
-
         private BluetoothDevice dev = null;
         private BluetoothSocket sock = null;
         private BITalinoDevice bitalino;
-        public int currentValue = 0;
-        public int currentFrameNumber = 0;
         SharedPreferences getPreference = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         String macAddress = getPreference.getString("macAddress",null );
         private final int ecgChannel = 1;
-        private final int sampleRate = 6;
+        private final int sampleRate = 10;
         private int[] reading;
 
-        DataPoint[] point;
+        private boolean runTest = true;
+
+        DataPoint[] readingPoint;
+
+        DataPoint[] filteredPoint;
 
         /**
          * Attempt to connect the to the Bitalino board.
@@ -175,12 +169,12 @@ public class ECG extends RoboActivity implements View.OnClickListener {
             // Get the remote Bluetooth device
             final String remoteDevice = macAddress;
             final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+
             dev = btAdapter.getRemoteDevice(remoteDevice);
             //establish bluetooth connection
             sock = dev.createRfcommSocketToServiceRecord(MY_UUID);
             sock.connect();
-            testInitiated = true;
-            bitalino = new BITalinoDevice(1000, new int[]{ecgChannel});
+            bitalino = new BITalinoDevice(100, new int[]{ecgChannel});
             bitalino.open(sock.getInputStream(), sock.getOutputStream());
             // start acquisition on predefined analog channels
             bitalino.start();
@@ -192,18 +186,26 @@ public class ECG extends RoboActivity implements View.OnClickListener {
                 connectToBitalino();
             }
             catch(Exception e) {
-                Toast.makeText(getApplicationContext(), "Unable to connect to Bitalino board.",
-                        Toast.LENGTH_LONG);
+                publishProgress(new String[] {"Unable to connect to Bitalino Board."});
+                Log.d("BlueTooth", "Unable to connect to Bitalino Board.");
                 return null;
             }
 
-            point = new DataPoint[GRAPH_SIZE];
-            for(int i = 0; i < point.length; i++) {
-                point[i] = new DataPoint(i, 0);
+            filteredPoint = new DataPoint[GRAPH_SIZE];
+            readingPoint = new DataPoint[GRAPH_SIZE];
+
+            for(int i = 0; i < readingPoint.length; i++) {
+                filteredPoint[i] = new DataPoint(i, 0);
+                readingPoint[i] = new DataPoint(i, 0);
             }
 
             try {
                 while (runTest) {
+
+                    if(isCancelled()) {
+                        return null;
+                    }
+
                     BITalinoFrame[] frames = null;
                     try {
                         frames = bitalino.read(sampleRate);//read(number of frames to read)
@@ -218,13 +220,15 @@ public class ECG extends RoboActivity implements View.OnClickListener {
                         for (int i = 0; i < frames.length; i++) {
                             //analog 2 == ECG
                             reading[i] = frames[i].getAnalog(ecgChannel);
-                            //Add the point to the filter
-                            filter.addPoint(reading[i]);
+                            rawAverage += reading[i];
+                            //Add the readingPoint to the filter
+                            //filter.addPoint(reading[i]);
                         }
+                        rawAverage = rawAverage / reading.length;
                         //output results to screen using onProgressUpdate()
                         publishProgress();
                         try {
-                            Thread.sleep(20);
+                            Thread.sleep(5);
                         }
                         catch(Exception e) {
 
@@ -233,14 +237,9 @@ public class ECG extends RoboActivity implements View.OnClickListener {
                 }
             }catch(Exception e) {              //error opening socket
                 Log.d("Exception", e.getMessage());
-                connectionFailure = true;     //flag that connection has failed
-                runTest = false;              //flag that the test has not run
-                testFailed = true;            //flag indicates the test has failed
-                publishProgress();
-
             }
             //close input and output streams and close socket
-                //terminate thread
+            //terminate thread
             return null;
         }
         /*
@@ -248,23 +247,33 @@ public class ECG extends RoboActivity implements View.OnClickListener {
          */
         @Override
         protected void onProgressUpdate(String... values) {
-            //If the connection has failed, show a message
-            if(connectionFailure == true) {
-                Toast.makeText(getApplicationContext(),"Unable to establish connection",
+            //If we have something in values, we have an error
+            if(values.length > 0) {
+                Toast.makeText(getApplicationContext(), values[0],
                         Toast.LENGTH_LONG).show();
-            }else {
-
-                for(int i = 0; i < point.length - reading.length; i++) {
-                    point[i] = point[i + reading.length];
-                }
-                int readIndex = 0;
-                for(int i = point.length - reading.length; i < point.length; i++) {
-                    point[i] = new DataPoint((point[i].getX() + reading.length), reading[readIndex]);
-                    readIndex++;
-                }
-                signalValueSeries.resetData(point);
-                myGraphView.getViewport().scrollToEnd();
+                return;
             }
+
+            //Need to move up the data points and get rid of the data points
+            //on the left hand part of the graph
+            for(int i = 0; i < readingPoint.length - reading.length; i++) {
+                readingPoint[i] = readingPoint[i + reading.length];
+                filteredPoint[i] = filteredPoint[i + reading.length];
+            }
+
+            //Add the new points to the end of the array
+            int readIndex = 0;
+            for(int i = readingPoint.length - reading.length; i < readingPoint.length; i++) {
+                readingPoint[i] = new DataPoint((readingPoint[i].getX() + reading.length),
+                        reading[readIndex]);
+                filteredPoint[i] = new DataPoint((readingPoint[i].getX()),
+                        filter.getValue(index));
+                index++;
+                readIndex++;
+            }
+            signalValueSeries.resetData(readingPoint);
+            //filteredValueSeries.resetData(filteredPoint);
+            myGraphView.getViewport().scrollToEnd();
         }
 
         @Override
@@ -272,8 +281,6 @@ public class ECG extends RoboActivity implements View.OnClickListener {
             // stop acquisition and close bluetooth connection
             try {
                 bitalino.stop();         //signal board to quit sending packets
-                InputStream is = null;      //close input and output streams
-                OutputStream os = null;
                 sock.close();               //close socket on this end
             } catch (Exception e) {
                 Log.e(TAG, "There was an error.", e);

@@ -82,8 +82,9 @@ public class ECG extends RoboActivity implements View.OnClickListener {
         myGraphView.getViewport().setXAxisBoundsManual(true);
         myGraphView.getViewport().setYAxisBoundsManual(true);
 
-        //myGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
-        //myGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        myGraphView.getGridLabelRenderer().setHorizontalLabelsVisible(false);
+        myGraphView.getGridLabelRenderer().setVerticalLabelsVisible(false);
+        myGraphView.getGridLabelRenderer().setGridStyle(GridLabelRenderer.GridStyle.NONE);
 
         //Find the buttons by their ID
         final Button startButton = (Button) findViewById(R.id.startBTN);
